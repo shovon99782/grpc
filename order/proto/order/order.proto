@@ -1,6 +1,6 @@
 syntax = "proto3";
 package order;
-option go_package = "order/proto;orderpb";
+option go_package = "order/proto/order;orderpb";
 
 import "google/protobuf/timestamp.proto";
 

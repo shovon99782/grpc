@@ -1,0 +1,33 @@
+syntax = "proto3";
+package stock;
+option go_package = "order/proto/stock;stockpb";
+
+message ReserveItem {
+  string sku = 1;
+  int32 quantity = 2;
+}
+
+message ReserveStockRequest {
+  string order_id = 1;
+  repeated ReserveItem items = 2;
+}
+
+message ReserveStockResponse {
+  bool success = 1;
+  string message = 2;
+  repeated string failed_skus = 3;
+}
+
+message ReleaseStockRequest {
+  string order_id = 1;
+  repeated ReserveItem items = 2;
+}
+
+message GetStockRequest { string sku = 1; }
+message GetStockResponse { string sku = 1; int32 qty_available = 2; int32 qty_reserved = 3; }
+
+service StockService {
+  rpc ReserveStock(ReserveStockRequest) returns (ReserveStockResponse);
+  rpc ReleaseStock(ReleaseStockRequest) returns (ReserveStockResponse);
+  rpc GetStock(GetStockRequest) returns (GetStockResponse);
+}
