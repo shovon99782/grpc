@@ -1,5 +1,6 @@
 syntax = "proto3";
 package stock;
+option go_package = "stock/proto;stockpb";
 
 message ReserveItem {
   string sku = 1;

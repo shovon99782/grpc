@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	orderpb "github.com/example/order-service/proto/order"
@@ -19,6 +20,11 @@ func NewOrderServer() *orderServer {
 func (s *orderServer) CreateOrder(ctx context.Context, req *orderpb.CreateOrderRequest) (*orderpb.CreateOrderResponse, error) {
 	log.Println("CreateOrder called - stub")
 	// TODO: validate, call StockService, save to DB, publish event
+	items := req.GetItems()
+	for _, item := range items {
+		fmt.Println("/////////")
+		fmt.Println(item.Sku)
+	}
 	return &orderpb.CreateOrderResponse{OrderId: "stub-order-id", Status: "CREATED"}, nil
 }
 
