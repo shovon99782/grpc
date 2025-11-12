@@ -1,0 +1,47 @@
+version: "3.8"
+services:
+  postgres:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: pguser
+      POSTGRES_PASSWORD: pgpass
+      POSTGRES_DB: appdb
+    ports: ["5432:5432"]
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  rabbitmq:
+    image: rabbitmq:3-management
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports: ["5672:5672","15672:15672"]
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.2
+    environment:
+      - discovery.type=single-node
+      - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports: ["9200:9200"]
+
+  order-service:
+    build: ./order
+    depends_on: [postgres, rabbitmq, stock-service]
+    ports: ["50051:50051"]
+
+  stock-service:
+    build: ./stock
+    depends_on: [postgres, rabbitmq]
+    ports: ["50052:50052"]
+
+  analytics-service:
+    build: ./analytics
+    depends_on: [rabbitmq, elasticsearch]
+    ports: ["8080:8080"]
+
+volumes:
+  pgdata:

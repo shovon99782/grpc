@@ -1,0 +1,50 @@
+syntax = "proto3";
+package order;
+option go_package = "order/proto;orderpb";
+
+import "google/protobuf/timestamp.proto";
+
+message OrderItem {
+  string sku = 1;
+  int32 quantity = 2;
+  double unit_price = 3;
+}
+
+message CreateOrderRequest {
+  string customer_id = 1;
+  repeated OrderItem items = 2;
+}
+
+message CreateOrderResponse {
+  string order_id = 1;
+  string status = 2;
+}
+
+message UpdateOrderStatusRequest {
+  string order_id = 1;
+  string status = 2;
+}
+
+message Empty {}
+
+message GetOrderRequest { string order_id = 1; }
+message GetOrderResponse {
+  string order_id = 1;
+  string customer_id = 2;
+  repeated OrderItem items = 3;
+  double total_amount = 4;
+  string status = 5;
+  google.protobuf.Timestamp created_at = 6;
+}
+
+message GetOrdersByCustomerRequest { string customer_id = 1; }
+message GetOrdersByCustomerResponse {
+  repeated GetOrderResponse orders = 1;
+}
+
+service OrderService {
+  rpc CreateOrder(CreateOrderRequest) returns (CreateOrderResponse);
+  rpc UpdateOrderStatus(UpdateOrderStatusRequest) returns (Empty);
+  rpc GetOrder(GetOrderRequest) returns (GetOrderResponse);
+  rpc GetOrdersByCustomer(GetOrdersByCustomerRequest) returns (GetOrdersByCustomerResponse);
+}

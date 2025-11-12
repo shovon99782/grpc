@@ -1,0 +1,7 @@
+# Binaries
+/order/order-service
+/stock/stock-service
+/analytics/analytics-service
+
+# Go
+**/vendor/
