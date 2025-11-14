@@ -2,6 +2,7 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"log"
 
 	pb "github.com/example/stock-service/proto"
@@ -18,7 +19,7 @@ func NewStockServer() *stockServer {
 func (s *stockServer) ReserveStock(ctx context.Context, req *pb.ReserveStockRequest) (*pb.ReserveStockResponse, error) {
 	// orderID := req.GetOrderId()
 	// items := req.GetItems()
-
+	fmt.Println("Stock Reserved Successfully")
 	return &pb.ReserveStockResponse{Success: true}, nil
 }
 

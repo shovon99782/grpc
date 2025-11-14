@@ -4,9 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"time"
 
 	orderpb "github.com/example/order-service/proto/order"
-	// stockpb "github.com/example/stock-service/proto/stock"
+	stockpb "github.com/example/order-service/proto/stock"
+	"google.golang.org/grpc"
 )
 
 type orderServer struct {
@@ -25,6 +27,29 @@ func (s *orderServer) CreateOrder(ctx context.Context, req *orderpb.CreateOrderR
 		fmt.Println("/////////")
 		fmt.Println(item.Sku)
 	}
+
+	stockServiceConn, err := grpc.Dial("localhost:50052", grpc.WithInsecure())
+	if err != nil {
+		log.Fatalf("Failed to connect to order service: %v", err)
+	}
+	defer stockServiceConn.Close()
+
+	client := stockpb.NewStockServiceClient(stockServiceConn)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	stockReq := &stockpb.ReserveStockRequest{
+		OrderId: "O-123",
+		Items:   []*stockpb.ReserveItem{},
+	}
+
+	resp, err := client.ReserveStock(ctx, stockReq)
+	if err != nil {
+		log.Fatalf("ReserveStock failed: %v", err)
+	}
+
+	fmt.Printf("✅ Stock Reserved Successfully!\nSuccess Status: %s\nMessage: %s\n", resp.Success, resp.Message)
+
 	return &orderpb.CreateOrderResponse{OrderId: "stub-order-id", Status: "CREATED"}, nil
 }
 
