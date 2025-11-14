@@ -2,10 +2,12 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
 	"time"
 
+	"github.com/example/order-service/internal/rabbitmq"
 	orderpb "github.com/example/order-service/proto/order"
 	stockpb "github.com/example/order-service/proto/stock"
 	"google.golang.org/grpc"
@@ -13,10 +15,14 @@ import (
 
 type orderServer struct {
 	orderpb.UnimplementedOrderServiceServer
+	rabbit *rabbitmq.RabbitMQ
 }
 
-func NewOrderServer() *orderServer {
-	return &orderServer{}
+func NewOrderServer(rabbit *rabbitmq.RabbitMQ) *orderServer {
+
+	return &orderServer{
+		rabbit: rabbit,
+	}
 }
 
 func (s *orderServer) CreateOrder(ctx context.Context, req *orderpb.CreateOrderRequest) (*orderpb.CreateOrderResponse, error) {
@@ -49,6 +55,22 @@ func (s *orderServer) CreateOrder(ctx context.Context, req *orderpb.CreateOrderR
 	}
 
 	fmt.Printf("✅ Stock Reserved Successfully!\nSuccess Status: %s\nMessage: %s\n", resp.Success, resp.Message)
+
+	event := map[string]interface{}{
+		"order_id": "O-123",
+		"status":   "CREATED",
+		"items":    req.GetItems(),
+		"time":     time.Now().String(),
+	}
+
+	body, _ := json.Marshal(event)
+
+	err = s.rabbit.Publish("order_created", body)
+	if err != nil {
+		return nil, err
+	}
+
+	log.Println("🎉 Order created and event published")
 
 	return &orderpb.CreateOrderResponse{OrderId: "stub-order-id", Status: "CREATED"}, nil
 }

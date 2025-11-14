@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 
+	"github.com/example/order-service/internal/rabbitmq"
 	server "github.com/example/order-service/internal/server"
 	pb "github.com/example/order-service/proto/order"
 	"google.golang.org/grpc"
@@ -18,7 +19,8 @@ func main() {
 
 	s := grpc.NewServer()
 	// register server (implementation in internal/server)
-	srv := server.NewOrderServer()
+	rabbit := rabbitmq.NewRabbitMQ("amqp://admin:admin@localhost:5672/")
+	srv := server.NewOrderServer(rabbit)
 	pb.RegisterOrderServiceServer(s, srv)
 
 	log.Println("Order Service listening on :50051")

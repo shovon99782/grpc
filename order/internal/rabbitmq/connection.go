@@ -6,16 +6,38 @@ import (
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-func ConnectRabbitMQ(url string) (*amqp.Connection, *amqp.Channel) {
+type RabbitMQ struct {
+	Conn *amqp.Connection
+}
+
+func NewRabbitMQ(url string) *RabbitMQ {
 	conn, err := amqp.Dial(url)
 	if err != nil {
-		log.Fatalf("Failed to connect to RabbitMQ: %v", err)
+		log.Fatalf("❌ Failed to connect to RabbitMQ: %v", err)
 	}
 
-	ch, err := conn.Channel()
+	log.Println("🐰 RabbitMQ connected successfully")
+	return &RabbitMQ{Conn: conn}
+}
+
+func (r *RabbitMQ) DeclareQueue(queue string) (*amqp.Channel, error) {
+	ch, err := r.Conn.Channel()
 	if err != nil {
-		log.Fatalf("Failed to open a channel: %v", err)
+		return nil, err
 	}
 
-	return conn, ch
+	_, err = ch.QueueDeclare(
+		queue,
+		true,  // durable
+		false, // auto-delete
+		false, // exclusive
+		false, // no-wait
+		nil,
+	)
+	if err != nil {
+		ch.Close()
+		return nil, err
+	}
+
+	return ch, nil
 }

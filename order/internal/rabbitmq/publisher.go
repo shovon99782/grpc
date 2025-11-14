@@ -2,18 +2,25 @@ package rabbitmq
 
 import (
 	"context"
-	"encoding/json"
+	"log"
+	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
-func PublishOrderCreated(ch *amqp.Channel, event interface{}) error {
-	body, _ := json.Marshal(event)
+func (r *RabbitMQ) Publish(queue string, body []byte) error {
+	ch, err := r.DeclareQueue(queue) // same connection, new channel
+	if err != nil {
+		return err
+	}
+	defer ch.Close()
 
-	return ch.PublishWithContext(
-		context.Background(),
-		"order.events",  // exchange
-		"order.created", // routing key
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	err = ch.PublishWithContext(ctx,
+		"",
+		queue,
 		false,
 		false,
 		amqp.Publishing{
@@ -21,4 +28,12 @@ func PublishOrderCreated(ch *amqp.Channel, event interface{}) error {
 			Body:        body,
 		},
 	)
+
+	if err != nil {
+		log.Println("Failed to publish message:", err)
+		return err
+	}
+
+	log.Println("Published to queue:", queue)
+	return nil
 }
