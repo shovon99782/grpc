@@ -1,9 +1,12 @@
 package rabbitmq
 
 import (
+	"bytes"
+	"context"
 	"encoding/json"
 	"log"
 
+	elasticsearch "github.com/elastic/go-elasticsearch/v8"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -15,7 +18,7 @@ type OrderCreatedEvent struct {
 }
 
 // placeholder consumer logic: connect to RabbitMQ, consume order.events, index into ES
-func StartConsumer(ch *amqp.Channel) {
+func StartConsumer(ch *amqp.Channel, es *elasticsearch.Client) {
 	_, err := ch.QueueDeclare(
 		"order_created",
 		true,  // durable
@@ -66,6 +69,21 @@ func StartConsumer(ch *amqp.Channel) {
 			//   - Send to Elasticsearch
 			//   - Enrich with customer data
 			//   - Build analytics dashboard
+			docBytes, _ := json.Marshal(event)
+			res, err := es.Index(
+				"orders",
+				bytes.NewReader(docBytes),
+				es.Index.WithDocumentID(event.OrderID),
+				es.Index.WithRefresh("true"),
+				es.Index.WithContext(context.Background()),
+			)
+			if err != nil {
+				log.Printf("❌ Elasticsearch insert error: %v", err)
+				continue
+			}
+			res.Body.Close()
+
+			log.Printf("✅ Order %s inserted into Elasticsearch", event.OrderID)
 		}
 	}()
 
