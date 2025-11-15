@@ -57,10 +57,10 @@ func (s *orderServer) CreateOrder(ctx context.Context, req *orderpb.CreateOrderR
 	fmt.Printf("✅ Stock Reserved Successfully!\nSuccess Status: %s\nMessage: %s\n", resp.Success, resp.Message)
 
 	event := map[string]interface{}{
-		"order_id": "O-123",
-		"status":   "CREATED",
-		"items":    req.GetItems(),
-		"time":     time.Now().String(),
+		"OrderID": "O-123",
+		"Status":  "CREATED",
+		"Items":   req.GetItems(),
+		"Time":    time.Now().String(),
 	}
 
 	body, _ := json.Marshal(event)
