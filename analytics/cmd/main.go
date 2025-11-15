@@ -4,8 +4,8 @@ import (
 	"log"
 	"net/http"
 
-	elasticsearch "github.com/elastic/go-elasticsearch/v8"
 	rabbitmq "github.com/example/analytics-service/internal/consumer"
+	elasticsearch "github.com/example/analytics-service/internal/elastic"
 	amqp "github.com/rabbitmq/amqp091-go"
 )
 
@@ -30,14 +30,16 @@ func main() {
 	defer ch.Close()
 
 	// ---- 3. Connect Elasticsearch ONCE ----
-	es, err := elasticsearch.NewClient(elasticsearch.Config{
-		Addresses: []string{"http://localhost:9200"},
-	})
-	if err != nil {
-		log.Fatalf("❌ Elasticsearch connection failed: %v", err)
-	}
+	// es, err := elasticsearch.NewClient(elasticsearch.Config{
+	// 	Addresses: []string{"http://localhost:9200"},
+	// })
+	// if err != nil {
+	// 	log.Fatalf("❌ Elasticsearch connection failed: %v", err)
+	// }
 
-	go rabbitmq.StartConsumer(ch, es)
+	elasticsearch.InitElasticsearch()
+
+	go rabbitmq.StartConsumer(ch, elasticsearch.ES)
 
 	log.Println("Analytics Service listening on :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
