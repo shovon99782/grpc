@@ -4,6 +4,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/example/analytics-service/handlers"
 	rabbitmq "github.com/example/analytics-service/internal/consumer"
 	elasticsearch "github.com/example/analytics-service/internal/elastic"
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -40,6 +41,10 @@ func main() {
 	elasticsearch.InitElasticsearch()
 
 	go rabbitmq.StartConsumer(ch, elasticsearch.ES)
+
+	http.HandleFunc("/search", handlers.SearchOrders)
+	http.HandleFunc("/agg/status", handlers.OrdersByStatus)
+	http.HandleFunc("/agg/customer", handlers.OrdersByCustomer)
 
 	log.Println("Analytics Service listening on :8080")
 	if err := http.ListenAndServe(":8080", nil); err != nil {
