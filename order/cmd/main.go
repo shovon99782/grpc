@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 
+	sql "github.com/example/order-service/internal/db"
 	"github.com/example/order-service/internal/rabbitmq"
 	server "github.com/example/order-service/internal/server"
 	pb "github.com/example/order-service/proto/order"
@@ -19,8 +20,9 @@ func main() {
 
 	s := grpc.NewServer()
 	// register server (implementation in internal/server)
+	db := sql.NewMySQLConnection()
 	rabbit := rabbitmq.NewRabbitMQ("amqp://admin:admin@localhost:5672/")
-	srv := server.NewOrderServer(rabbit)
+	srv := server.NewOrderServer(db, rabbit)
 	pb.RegisterOrderServiceServer(s, srv)
 
 	log.Println("Order Service listening on :50051")

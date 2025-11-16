@@ -9,7 +9,7 @@ import (
 
 func NewMySQLConnection() *sql.DB {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true",
-		"user", "12345", "mysql", "3306", "orders",
+		"user", "12345", "127.0.0.1", "3306", "orders",
 	)
 
 	db, err := sql.Open("mysql", dsn)
@@ -18,6 +18,7 @@ func NewMySQLConnection() *sql.DB {
 	}
 
 	if err := db.Ping(); err != nil {
+		fmt.Println(err)
 		panic(err)
 	}
 

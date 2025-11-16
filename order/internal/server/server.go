@@ -7,27 +7,48 @@ import (
 	"log"
 	"time"
 
+	"database/sql"
+
 	"github.com/example/order-service/internal/rabbitmq"
 	orderpb "github.com/example/order-service/proto/order"
 	stockpb "github.com/example/order-service/proto/stock"
+	"github.com/google/uuid"
 	"google.golang.org/grpc"
 )
+
+func calculateTotal(items []*orderpb.OrderItem) float64 {
+	var total float64 = 0
+
+	for _, item := range items {
+		total += float64(item.Quantity) * item.UnitPrice
+	}
+
+	return total
+}
 
 type orderServer struct {
 	orderpb.UnimplementedOrderServiceServer
 	rabbit *rabbitmq.RabbitMQ
+	db     *sql.DB
 }
 
-func NewOrderServer(rabbit *rabbitmq.RabbitMQ) *orderServer {
+func NewOrderServer(db *sql.DB, rabbit *rabbitmq.RabbitMQ) *orderServer {
 
 	return &orderServer{
 		rabbit: rabbit,
+		db:     db,
 	}
 }
 
 func (s *orderServer) CreateOrder(ctx context.Context, req *orderpb.CreateOrderRequest) (*orderpb.CreateOrderResponse, error) {
 	log.Println("CreateOrder called - stub")
 	// TODO: validate, call StockService, save to DB, publish event
+
+	tx, err := s.db.Begin()
+	if err != nil {
+		return nil, err
+	}
+
 	items := req.GetItems()
 	for _, item := range items {
 		fmt.Println("/////////")
@@ -56,8 +77,40 @@ func (s *orderServer) CreateOrder(ctx context.Context, req *orderpb.CreateOrderR
 
 	fmt.Printf("✅ Stock Reserved Successfully!\nSuccess Status: %s\nMessage: %s\n", resp.Success, resp.Message)
 
+	newOrderId := uuid.New().String()
+	// Insert order
+	_, err = tx.Exec(
+		`INSERT INTO orders (id, customer_id, total_amount, status) VALUES (?, ?, ?, 'CREATED')`,
+		newOrderId,
+		req.CustomerId,
+		calculateTotal(req.Items),
+	)
+	if err != nil {
+		fmt.Println(err)
+		tx.Rollback()
+		return nil, err
+	}
+
+	// Insert items
+	for _, item := range req.Items {
+		_, err = tx.Exec(
+			`INSERT INTO order_items (order_id, sku, quantity, unit_price) VALUES (?, ?, ?, ?)`,
+			newOrderId,
+			item.Sku,
+			item.Quantity,
+			item.UnitPrice,
+		)
+		if err != nil {
+			fmt.Println(err)
+			tx.Rollback()
+			return nil, err
+		}
+	}
+
+	tx.Commit()
+
 	event := map[string]interface{}{
-		"OrderID": "O-123",
+		"OrderID": newOrderId,
 		"Status":  "CREATED",
 		"Items":   req.GetItems(),
 		"Time":    time.Now().String(),
@@ -72,7 +125,7 @@ func (s *orderServer) CreateOrder(ctx context.Context, req *orderpb.CreateOrderR
 
 	log.Println("🎉 Order created and event published")
 
-	return &orderpb.CreateOrderResponse{OrderId: "stub-order-id", Status: "CREATED"}, nil
+	return &orderpb.CreateOrderResponse{OrderId: newOrderId, Status: "CREATED"}, nil
 }
 
 func (s *orderServer) UpdateOrderStatus(ctx context.Context, req *orderpb.UpdateOrderStatusRequest) (*orderpb.Empty, error) {
