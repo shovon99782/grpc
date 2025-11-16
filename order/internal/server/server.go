@@ -14,6 +14,7 @@ import (
 	stockpb "github.com/example/order-service/proto/stock"
 	"github.com/google/uuid"
 	"google.golang.org/grpc"
+	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func calculateTotal(items []*orderpb.OrderItem) float64 {
@@ -123,35 +124,184 @@ func (s *orderServer) CreateOrder(ctx context.Context, req *orderpb.CreateOrderR
 	tx.Commit()
 
 	event := map[string]interface{}{
-		"OrderID": newOrderId,
-		"Status":  "CREATED",
-		"Items":   req.GetItems(),
-		"Time":    time.Now().String(),
+		"OrderID":    newOrderId,
+		"Status":     "CREATED",
+		"CustomerID": req.GetCustomerId(),
+		"Items":      req.GetItems(),
+		"Time":       time.Now().String(),
 	}
 
 	body, _ := json.Marshal(event)
 
-	err = s.rabbit.Publish("order_created", body)
-	if err != nil {
-		return nil, err
-	}
+	go func() {
+		err = s.rabbit.Publish("order_created", body)
+		if err != nil {
+			fmt.Println(err)
+		}
 
-	log.Println("🎉 Order created and event published")
+		log.Println("🎉 Order created and event published")
+	}()
 
 	return &orderpb.CreateOrderResponse{OrderId: newOrderId, Status: "CREATED"}, nil
 }
 
 func (s *orderServer) UpdateOrderStatus(ctx context.Context, req *orderpb.UpdateOrderStatusRequest) (*orderpb.Empty, error) {
-	log.Println("UpdateOrderStatus called - stub")
+	log.Println("UpdateOrderStatus called")
+
+	query := `UPDATE orders SET status = ?, updated_at = NOW() WHERE id = ?`
+
+	_, err := s.db.ExecContext(ctx, query, req.Status, req.OrderId)
+	if err != nil {
+		log.Printf("❌ Failed to update order: %v", err)
+		return nil, err
+	}
+
+	log.Printf("✅ Order %s updated to status %s", req.OrderId, req.Status)
+
 	return &orderpb.Empty{}, nil
 }
 
 func (s *orderServer) GetOrder(ctx context.Context, req *orderpb.GetOrderRequest) (*orderpb.GetOrderResponse, error) {
-	log.Println("GetOrder called - stub")
-	return &orderpb.GetOrderResponse{OrderId: req.OrderId, CustomerId: "cust-stub", Status: "CREATED"}, nil
+	log.Println("GetOrder called")
+
+	// Fetch main order info
+	query := `
+        SELECT id, customer_id, status, total_amount 
+        FROM orders 
+        WHERE id = ?
+    `
+	var (
+		orderID, customerID, status string
+		total                       float64
+	)
+
+	err := s.db.QueryRowContext(ctx, query, req.OrderId).
+		Scan(&orderID, &customerID, &status, &total)
+
+	if err != nil {
+		log.Printf("❌ Order not found: %v", err)
+		return nil, err
+	}
+
+	// Fetch order items
+	itemsQuery := `
+        SELECT sku, quantity, unit_price 
+        FROM order_items
+        WHERE order_id = ?
+    `
+
+	rows, err := s.db.QueryContext(ctx, itemsQuery, req.OrderId)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var items []*orderpb.OrderItem
+	for rows.Next() {
+		var sku string
+		var qty int32
+		var price float64
+
+		rows.Scan(&sku, &qty, &price)
+
+		items = append(items, &orderpb.OrderItem{
+			Sku:       sku,
+			Quantity:  qty,
+			UnitPrice: float64(price),
+		})
+	}
+
+	return &orderpb.GetOrderResponse{
+		OrderId:     orderID,
+		CustomerId:  customerID,
+		Status:      status,
+		TotalAmount: float64(total),
+		Items:       items,
+	}, nil
 }
 
 func (s *orderServer) GetOrdersByCustomer(ctx context.Context, req *orderpb.GetOrdersByCustomerRequest) (*orderpb.GetOrdersByCustomerResponse, error) {
-	log.Println("GetOrdersByCustomer called - stub")
-	return &orderpb.GetOrdersByCustomerResponse{}, nil
+	log.Println("GetOrdersByCustomer called for customer:", req.CustomerId)
+
+	// Query orders for the customer
+	const ordersQ = `
+		SELECT id, customer_id, total_amount, status, created_at
+		FROM orders
+		WHERE customer_id = ?
+		ORDER BY created_at DESC
+	`
+
+	rows, err := s.db.QueryContext(ctx, ordersQ, req.CustomerId)
+	if err != nil {
+		log.Printf("failed to query orders: %v", err)
+		return nil, err
+	}
+	defer rows.Close()
+
+	var resOrders []*orderpb.GetOrderResponse
+
+	for rows.Next() {
+		var (
+			orderID    string
+			customerID string
+			status     string
+			totalAmt   float64
+			createdAt  time.Time
+		)
+
+		if err := rows.Scan(&orderID, &customerID, &totalAmt, &status, &createdAt); err != nil {
+			log.Printf("failed to scan order row: %v", err)
+			return nil, err
+		}
+
+		// Query items for this order
+		const itemsQ = `
+			SELECT sku, quantity, unit_price
+			FROM order_items
+			WHERE order_id = ?
+		`
+		itemRows, err := s.db.QueryContext(ctx, itemsQ, orderID)
+		if err != nil {
+			log.Printf("failed to query order items for order %s: %v", orderID, err)
+			return nil, err
+		}
+
+		var items []*orderpb.OrderItem
+		for itemRows.Next() {
+			var (
+				sku       string
+				qty       int
+				unitPrice float64
+			)
+			if err := itemRows.Scan(&sku, &qty, &unitPrice); err != nil {
+				itemRows.Close()
+				log.Printf("failed to scan item row for order %s: %v", orderID, err)
+				return nil, err
+			}
+			items = append(items, &orderpb.OrderItem{
+				Sku:       sku,
+				Quantity:  int32(qty),
+				UnitPrice: unitPrice,
+			})
+		}
+		itemRows.Close()
+
+		resOrders = append(resOrders, &orderpb.GetOrderResponse{
+			OrderId:     orderID,
+			CustomerId:  customerID,
+			Items:       items,
+			TotalAmount: totalAmt,
+			Status:      status,
+			CreatedAt:   timestamppb.New(createdAt),
+		})
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Printf("rows error: %v", err)
+		return nil, err
+	}
+
+	return &orderpb.GetOrdersByCustomerResponse{
+		Orders: resOrders,
+	}, nil
 }
