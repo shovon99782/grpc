@@ -50,9 +50,21 @@ func (s *orderServer) CreateOrder(ctx context.Context, req *orderpb.CreateOrderR
 	}
 
 	items := req.GetItems()
+	stockItems := []*stockpb.ReserveItem{}
+
+	// for _, item := range req.GetItems() {
+	// 	stockItems = append(stockItems, &stockpb.ReserveItem{
+	// 		Sku:      item.Sku,
+	// 		Quantity: item.Quantity,
+	// 	})
+	// }
 	for _, item := range items {
 		fmt.Println("/////////")
 		fmt.Println(item.Sku)
+		stockItems = append(stockItems, &stockpb.ReserveItem{
+			Sku:      item.Sku,
+			Quantity: item.Quantity,
+		})
 	}
 
 	stockServiceConn, err := grpc.Dial("localhost:50052", grpc.WithInsecure())
@@ -65,9 +77,11 @@ func (s *orderServer) CreateOrder(ctx context.Context, req *orderpb.CreateOrderR
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	newOrderId := uuid.New().String()
+
 	stockReq := &stockpb.ReserveStockRequest{
-		OrderId: "O-123",
-		Items:   []*stockpb.ReserveItem{},
+		OrderId: newOrderId,
+		Items:   stockItems,
 	}
 
 	resp, err := client.ReserveStock(ctx, stockReq)
@@ -77,7 +91,6 @@ func (s *orderServer) CreateOrder(ctx context.Context, req *orderpb.CreateOrderR
 
 	fmt.Printf("✅ Stock Reserved Successfully!\nSuccess Status: %s\nMessage: %s\n", resp.Success, resp.Message)
 
-	newOrderId := uuid.New().String()
 	// Insert order
 	_, err = tx.Exec(
 		`INSERT INTO orders (id, customer_id, total_amount, status) VALUES (?, ?, ?, 'CREATED')`,
