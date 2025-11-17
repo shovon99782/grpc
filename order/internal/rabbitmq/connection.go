@@ -2,6 +2,7 @@ package rabbitmq
 
 import (
 	"log"
+	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
 )
@@ -11,9 +12,25 @@ type RabbitMQ struct {
 }
 
 func NewRabbitMQ(url string) *RabbitMQ {
-	conn, err := amqp.Dial(url)
+	// conn, err := amqp.Dial(url)
+	// if err != nil {
+	// 	log.Fatalf("❌ Failed to connect to RabbitMQ: %v", err)
+	// }
+
+	var conn *amqp.Connection
+	var err error
+	for i := 0; i < 10; i++ {
+		conn, err = amqp.Dial(url)
+		if err == nil {
+			break
+		}
+
+		log.Printf("Retrying RabbitMQ in 3s... (%v)", err)
+		time.Sleep(3 * time.Second)
+	}
+
 	if err != nil {
-		log.Fatalf("❌ Failed to connect to RabbitMQ: %v", err)
+		log.Fatalf("❌ Failed to connect to RabbitMQ after retries: %v", err)
 	}
 
 	log.Println("🐰 RabbitMQ connected successfully")

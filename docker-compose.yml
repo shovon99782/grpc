@@ -3,12 +3,13 @@ services:
   rabbitmq:
     image: rabbitmq:3-management
     environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: admin
     ports: ["5672:5672","15672:15672"]
+    mem_limit: 512m
 
   elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.2
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
     environment:
       - discovery.type=single-node
       - ES_JAVA_OPTS=-Xms512m -Xmx512m
@@ -20,18 +21,19 @@ services:
 
   order-service:
     build: ./order
-    depends_on: [postgres, rabbitmq, stock-service]
+    depends_on: [rabbitmq, stock-service]
     ports: ["50051:50051"]
+    extra_hosts:
+    - "host.docker.internal:host-gateway"
 
   stock-service:
     build: ./stock
-    depends_on: [postgres, rabbitmq]
+    depends_on: [rabbitmq]
     ports: ["50052:50052"]
+    extra_hosts:
+    - "host.docker.internal:host-gateway"
 
   analytics-service:
     build: ./analytics
     depends_on: [rabbitmq, elasticsearch]
     ports: ["8080:8080"]
-
-volumes:
-  pgdata:

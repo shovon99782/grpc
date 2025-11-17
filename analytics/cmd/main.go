@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/example/analytics-service/handlers"
 	rabbitmq "github.com/example/analytics-service/internal/consumer"
@@ -16,9 +17,24 @@ func main() {
 		w.Write([]byte("ok"))
 	})
 
-	conn, err := amqp.Dial("amqp://admin:admin@localhost:5672/")
+	// conn, err := amqp.Dial("amqp://admin:admin@rabbitmq:5672/")
+	// if err != nil {
+	// 	log.Fatalf("❌ Failed to connect to RabbitMQ: %v", err)
+	// }
+	var conn *amqp.Connection
+	var err error
+	for i := 0; i < 10; i++ {
+		conn, err = amqp.Dial("amqp://admin:admin@rabbitmq:5672/")
+		if err == nil {
+			break
+		}
+
+		log.Printf("Retrying RabbitMQ in 3s... (%v)", err)
+		time.Sleep(3 * time.Second)
+	}
+
 	if err != nil {
-		log.Fatalf("❌ Failed to connect to RabbitMQ: %v", err)
+		log.Fatalf("❌ Failed to connect to RabbitMQ after retries: %v", err)
 	}
 
 	defer conn.Close()

@@ -9,7 +9,7 @@ import (
 
 func NewMySQLConnection() *sql.DB {
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true",
-		"user", "12345", "127.0.0.1", "3306", "orders",
+		"user", "12345", "host.docker.internal", "3306", "orders",
 	)
 
 	db, err := sql.Open("mysql", dsn)

@@ -21,7 +21,7 @@ func main() {
 	s := grpc.NewServer()
 	// register server (implementation in internal/server)
 	db := sql.NewMySQLConnection()
-	rabbit := rabbitmq.NewRabbitMQ("amqp://admin:admin@localhost:5672/")
+	rabbit := rabbitmq.NewRabbitMQ("amqp://admin:admin@rabbitmq:5672/")
 	srv := server.NewOrderServer(db, rabbit)
 	pb.RegisterOrderServiceServer(s, srv)
 

@@ -10,7 +10,7 @@ var ES *elasticsearch.Client
 
 func InitElasticsearch() {
 	cfg := elasticsearch.Config{
-		Addresses: []string{"http://localhost:9200"},
+		Addresses: []string{"http://elasticsearch:9200"},
 	}
 
 	client, err := elasticsearch.NewClient(cfg)
