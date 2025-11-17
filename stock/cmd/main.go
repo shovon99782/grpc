@@ -6,6 +6,7 @@ import (
 
 	sql "github.com/example/stock-service/internal/db"
 	server "github.com/example/stock-service/internal/server"
+	service "github.com/example/stock-service/internal/service"
 	pb "github.com/example/stock-service/proto"
 	"google.golang.org/grpc"
 )
@@ -18,7 +19,8 @@ func main() {
 
 	s := grpc.NewServer()
 	db := sql.NewMySQLConnection()
-	srv := server.NewStockServer(db)
+	service := service.NewStockService(db)
+	srv := server.NewStockServer(service)
 	pb.RegisterStockServiceServer(s, srv)
 
 	log.Println("Stock Service listening on :50052")
