@@ -2,7 +2,7 @@
 // versions:
 // - protoc-gen-go-grpc v1.5.1
 // - protoc             v3.21.12
-// source: order/proto/stock.proto
+// source: proto/stock.proto
 
 package stockpb
 
@@ -29,7 +29,7 @@ const (
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
 type StockServiceClient interface {
 	ReserveStock(ctx context.Context, in *ReserveStockRequest, opts ...grpc.CallOption) (*ReserveStockResponse, error)
-	ReleaseStock(ctx context.Context, in *ReleaseStockRequest, opts ...grpc.CallOption) (*ReserveStockResponse, error)
+	ReleaseStock(ctx context.Context, in *ReleaseStockRequest, opts ...grpc.CallOption) (*ReleaseStockResponse, error)
 	GetStock(ctx context.Context, in *GetStockRequest, opts ...grpc.CallOption) (*GetStockResponse, error)
 }
 
@@ -51,9 +51,9 @@ func (c *stockServiceClient) ReserveStock(ctx context.Context, in *ReserveStockR
 	return out, nil
 }
 
-func (c *stockServiceClient) ReleaseStock(ctx context.Context, in *ReleaseStockRequest, opts ...grpc.CallOption) (*ReserveStockResponse, error) {
+func (c *stockServiceClient) ReleaseStock(ctx context.Context, in *ReleaseStockRequest, opts ...grpc.CallOption) (*ReleaseStockResponse, error) {
 	cOpts := append([]grpc.CallOption{grpc.StaticMethod()}, opts...)
-	out := new(ReserveStockResponse)
+	out := new(ReleaseStockResponse)
 	err := c.cc.Invoke(ctx, StockService_ReleaseStock_FullMethodName, in, out, cOpts...)
 	if err != nil {
 		return nil, err
@@ -76,7 +76,7 @@ func (c *stockServiceClient) GetStock(ctx context.Context, in *GetStockRequest, 
 // for forward compatibility.
 type StockServiceServer interface {
 	ReserveStock(context.Context, *ReserveStockRequest) (*ReserveStockResponse, error)
-	ReleaseStock(context.Context, *ReleaseStockRequest) (*ReserveStockResponse, error)
+	ReleaseStock(context.Context, *ReleaseStockRequest) (*ReleaseStockResponse, error)
 	GetStock(context.Context, *GetStockRequest) (*GetStockResponse, error)
 	mustEmbedUnimplementedStockServiceServer()
 }
@@ -91,7 +91,7 @@ type UnimplementedStockServiceServer struct{}
 func (UnimplementedStockServiceServer) ReserveStock(context.Context, *ReserveStockRequest) (*ReserveStockResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReserveStock not implemented")
 }
-func (UnimplementedStockServiceServer) ReleaseStock(context.Context, *ReleaseStockRequest) (*ReserveStockResponse, error) {
+func (UnimplementedStockServiceServer) ReleaseStock(context.Context, *ReleaseStockRequest) (*ReleaseStockResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method ReleaseStock not implemented")
 }
 func (UnimplementedStockServiceServer) GetStock(context.Context, *GetStockRequest) (*GetStockResponse, error) {
@@ -193,5 +193,5 @@ var StockService_ServiceDesc = grpc.ServiceDesc{
 		},
 	},
 	Streams:  []grpc.StreamDesc{},
-	Metadata: "order/proto/stock.proto",
+	Metadata: "proto/stock.proto",
 }

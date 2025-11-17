@@ -113,12 +113,93 @@ func (s *stockServer) ReserveStock(ctx context.Context, req *pb.ReserveStockRequ
 	}, nil
 }
 
-func (s *stockServer) ReleaseStock(ctx context.Context, req *pb.ReleaseStockRequest) (*pb.ReserveStockResponse, error) {
-	log.Println("ReleaseStock called - stub")
-	return &pb.ReserveStockResponse{Success: true}, nil
+func (s *stockServer) ReleaseStock(ctx context.Context, req *stockpb.ReleaseStockRequest) (*stockpb.ReleaseStockResponse, error) {
+	orderID := req.GetOrderId()
+
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	// Step 1: Get all active reservations for this order
+	rows, err := tx.Query(`
+        SELECT sku, quantity 
+        FROM reservations 
+        WHERE order_id = ? AND released = FALSE
+        FOR UPDATE
+    `, orderID)
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+	defer rows.Close()
+
+	type item struct {
+		sku string
+		qty int
+	}
+	var reservedItems []item
+
+	for rows.Next() {
+		var i item
+		if err := rows.Scan(&i.sku, &i.qty); err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+		reservedItems = append(reservedItems, i)
+	}
+
+	if len(reservedItems) == 0 {
+		tx.Rollback()
+		return &stockpb.ReleaseStockResponse{
+			Success: false,
+			Message: "No reservations found",
+		}, nil
+	}
+
+	// Step 2: Release stock for each reserved SKU
+	for _, it := range reservedItems {
+		_, err = tx.Exec(`
+            UPDATE stocks
+            SET qty_available = qty_available + ?, 
+                qty_reserved = qty_reserved - ?
+            WHERE sku = ?
+        `, it.qty, it.qty, it.sku)
+		if err != nil {
+			tx.Rollback()
+			return nil, err
+		}
+	}
+
+	// Step 3: Mark reservations as released
+	_, err = tx.Exec(`
+        UPDATE reservations 
+        SET released = TRUE 
+        WHERE order_id = ?
+    `, orderID)
+	if err != nil {
+		tx.Rollback()
+		return nil, err
+	}
+
+	// Commit final
+	if err := tx.Commit(); err != nil {
+		return nil, err
+	}
+
+	return &stockpb.ReleaseStockResponse{
+		Success: true,
+		Message: "Stock released successfully",
+	}, nil
 }
 
 func (s *stockServer) GetStock(ctx context.Context, req *pb.GetStockRequest) (*pb.GetStockResponse, error) {
-	log.Println("GetStock called - stub")
-	return &pb.GetStockResponse{Sku: req.Sku, QtyAvailable: 100, QtyReserved: 0}, nil
+	sku := req.GetSku()
+
+	var available, reserved int32
+
+	s.db.QueryRow(
+		`SELECT qty_available, qty_reserved FROM stocks WHERE sku = ?`, sku).Scan(&available, &reserved)
+
+	return &pb.GetStockResponse{Sku: req.Sku, QtyAvailable: available, QtyReserved: reserved}, nil
 }
