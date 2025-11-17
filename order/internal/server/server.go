@@ -156,6 +156,44 @@ func (s *orderServer) UpdateOrderStatus(ctx context.Context, req *orderpb.Update
 		return nil, err
 	}
 
+	if req.Status == "CANCELLED" {
+		rows, err := s.db.Query(`
+            SELECT sku, quantity FROM order_items WHERE order_id = ?
+        `, req.OrderId)
+		if err != nil {
+			return nil, err
+		}
+		defer rows.Close()
+
+		var items []*stockpb.ReserveItem
+		for rows.Next() {
+			var sku string
+			var qty int
+			rows.Scan(&sku, &qty)
+
+			items = append(items, &stockpb.ReserveItem{
+				Sku:      sku,
+				Quantity: int32(qty),
+			})
+		}
+
+		// Build event payload
+		event := stockpb.ReleaseStockRequest{
+			OrderId: req.OrderId,
+			Items:   items,
+		}
+
+		body, _ := json.Marshal(event)
+
+		// Publish to RabbitMQ
+		err = s.rabbit.Publish("order_cancelled", body)
+		if err != nil {
+			log.Printf("❌ Failed to publish cancel event: %v", err)
+		} else {
+			log.Printf("📢 Published order_cancelled event for OrderID=%s", req.OrderId)
+		}
+	}
+
 	log.Printf("✅ Order %s updated to status %s", req.OrderId, req.Status)
 
 	return &orderpb.Empty{}, nil
