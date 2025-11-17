@@ -68,7 +68,7 @@ func (s *orderServer) CreateOrder(ctx context.Context, req *orderpb.CreateOrderR
 		})
 	}
 
-	stockServiceConn, err := grpc.Dial("localhost:50052", grpc.WithInsecure())
+	stockServiceConn, err := grpc.Dial("stock-service:50052", grpc.WithInsecure())
 	if err != nil {
 		log.Fatalf("Failed to connect to order service: %v", err)
 	}
