@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/example/analytics-service/config"
 	"github.com/example/analytics-service/handlers"
 	rabbitmq "github.com/example/analytics-service/internal/consumer"
 	elasticsearch "github.com/example/analytics-service/internal/elastic"
@@ -12,7 +13,7 @@ import (
 )
 
 func main() {
-	// start a minimal HTTP server for search API (stub)
+	cfg := config.LoadConfig()
 	http.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("ok"))
 	})
@@ -24,7 +25,7 @@ func main() {
 	var conn *amqp.Connection
 	var err error
 	for i := 0; i < 10; i++ {
-		conn, err = amqp.Dial("amqp://admin:admin@rabbitmq:5672/")
+		conn, err = amqp.Dial(cfg.RabbitUrl)
 		if err == nil {
 			break
 		}
@@ -63,7 +64,7 @@ func main() {
 	http.HandleFunc("/agg/customer", handlers.OrdersByCustomer)
 
 	log.Println("Analytics Service listening on :8080")
-	if err := http.ListenAndServe(":8080", nil); err != nil {
+	if err := http.ListenAndServe(":"+cfg.Port, nil); err != nil {
 		log.Fatalf("failed to serve: %v", err)
 	}
 }

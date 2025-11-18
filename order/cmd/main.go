@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 
+	"github.com/example/order-service/config"
 	sql "github.com/example/order-service/internal/db"
 	"github.com/example/order-service/internal/rabbitmq"
 	server "github.com/example/order-service/internal/server"
@@ -14,7 +15,8 @@ import (
 )
 
 func main() {
-	lis, err := net.Listen("tcp", ":50051")
+	cfg := config.LoadConfig()
+	lis, err := net.Listen("tcp", ":"+cfg.Port)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
@@ -22,7 +24,7 @@ func main() {
 	grpcServer := grpc.NewServer()
 	// register server (implementation in internal/server)
 	db := sql.NewMySQLConnection()
-	rabbit := rabbitmq.NewRabbitMQ("amqp://admin:admin@rabbitmq:5672/")
+	rabbit := rabbitmq.NewRabbitMQ(cfg.RabbitUrl)
 	orderService := service.NewOrderService(db, rabbit)
 	// srv := server.NewOrderServer(db, rabbit)
 	orderServer := server.NewOrderServer(orderService)

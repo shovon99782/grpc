@@ -4,12 +4,14 @@ import (
 	"database/sql"
 	"fmt"
 
+	"github.com/example/stock-service/config"
 	_ "github.com/go-sql-driver/mysql"
 )
 
 func NewMySQLConnection() *sql.DB {
+	cfg := config.LoadConfig()
 	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?parseTime=true",
-		"user", "12345", "host.docker.internal", "3306", "stock_service",
+		cfg.DBUser, cfg.DBPass, cfg.DBHost, cfg.DBPort, cfg.DBName,
 	)
 
 	db, err := sql.Open("mysql", dsn)

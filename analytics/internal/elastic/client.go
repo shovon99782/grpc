@@ -4,16 +4,18 @@ import (
 	"log"
 
 	"github.com/elastic/go-elasticsearch/v8"
+	"github.com/example/analytics-service/config"
 )
 
 var ES *elasticsearch.Client
 
 func InitElasticsearch() {
-	cfg := elasticsearch.Config{
-		Addresses: []string{"http://elasticsearch:9200"},
+	cfg := config.LoadConfig()
+	escfg := elasticsearch.Config{
+		Addresses: []string{cfg.ElasticUrl},
 	}
 
-	client, err := elasticsearch.NewClient(cfg)
+	client, err := elasticsearch.NewClient(escfg)
 	if err != nil {
 		log.Fatalf("❌ Failed to create Elasticsearch client: %v", err)
 	}

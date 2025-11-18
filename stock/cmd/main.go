@@ -4,6 +4,7 @@ import (
 	"log"
 	"net"
 
+	"github.com/example/stock-service/config"
 	sql "github.com/example/stock-service/internal/db"
 	rabbitmq "github.com/example/stock-service/internal/rabbitmq"
 	server "github.com/example/stock-service/internal/server"
@@ -13,7 +14,8 @@ import (
 )
 
 func main() {
-	lis, err := net.Listen("tcp", ":50052")
+	cfg := config.LoadConfig()
+	lis, err := net.Listen("tcp", ":"+cfg.Port)
 	if err != nil {
 		log.Fatalf("failed to listen: %v", err)
 	}
@@ -22,7 +24,7 @@ func main() {
 	db := sql.NewMySQLConnection()
 	service := service.NewStockService(db)
 
-	rabbit := rabbitmq.NewRabbitMQ("amqp://admin:admin@rabbitmq:5672/")
+	rabbit := rabbitmq.NewRabbitMQ(cfg.RabbitUrl)
 	ch, err := rabbit.Conn.Channel()
 	if err != nil {
 		log.Fatalf("❌ Failed to open channel: %v", err)

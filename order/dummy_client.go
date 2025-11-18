@@ -46,13 +46,14 @@ func main() {
 	fmt.Printf("Status: %s\n\n", createResp.Status)
 
 	orderID := createResp.OrderId
-
+	fmt.Println("NEW ORDER ID:", orderID)
+	// orderID := "550e889b-1929-4c3e-9714-831ceeaff150"
 	//-------------------------------------------
 	// 2️⃣ UPDATE ORDER STATUS
 	//-------------------------------------------
 	updateReq := &orderpb.UpdateOrderStatusRequest{
 		OrderId: orderID,
-		Status:  "CONFIRMED",
+		Status:  "CANCELLED",
 	}
 
 	_, err = client.UpdateOrderStatus(ctx, updateReq)
@@ -63,9 +64,9 @@ func main() {
 	fmt.Println("=== UpdateOrderStatus Response ===")
 	fmt.Printf("Order %s status updated to CONFIRMED\n\n", orderID)
 
-	//-------------------------------------------
-	// 3️⃣ GET ORDER BY ID
-	//-------------------------------------------
+	// //-------------------------------------------
+	// // 3️⃣ GET ORDER BY ID
+	// //-------------------------------------------
 	getReq := &orderpb.GetOrderRequest{
 		OrderId: orderID,
 	}
@@ -93,7 +94,7 @@ func main() {
 	// 4️⃣ GET ORDERS BY CUSTOMER
 	//-------------------------------------------
 	custReq := &orderpb.GetOrdersByCustomerRequest{
-		CustomerId: "cust-456",
+		CustomerId: "cust-123",
 	}
 
 	custResp, err := client.GetOrdersByCustomer(ctx, custReq)
