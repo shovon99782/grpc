@@ -25,7 +25,7 @@ To get started with this project, you will need to have Docker and Docker Compos
 
 1.  Clone the repository:
     ```sh
-    git clone https://github.com/HETIC-MT-P2026/order-tracking-microservices.git
+    git clone https://github.com/shovon99782/grpc.git
     ```
 2.  Navigate to the project directory:
     ```sh
